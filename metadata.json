@@ -1,0 +1,5 @@
+{
+  "name": "TuDuDi Quick Add",
+  "description": "A Chrome extension to quickly add tasks, notes, and projects to your TuDuDi instance. View your inbox, today's tasks, and upcoming items at a glance, with optional due date notifications.",
+  "requestFramePermissions": []
+}

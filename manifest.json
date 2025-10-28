@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "TuDuDi Quick Add",
+  "version": "1.0",
+  "description": "Quickly add tasks, notes, and projects to TuDuDi.",
+  "permissions": [
+    "storage",
+    "notifications",
+    "alarms",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "logo.png",
+      "48": "logo.png",
+      "128": "logo.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' https://cdn.tailwindcss.com https://aistudiocdn.com; object-src 'self'; connect-src http://*/* https://*/*;"
+  }
+}
