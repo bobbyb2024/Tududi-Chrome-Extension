@@ -29,6 +29,13 @@ declare namespace chrome {
   }
   namespace tabs {
     function create(createProperties: { url: string }): void;
+    interface Tab {}
+  }
+  namespace contextMenus {
+    function create(createProperties: any, callback?: () => void): void;
+    const onClicked: {
+      addListener(callback: (info: { menuItemId: string; selectionText?: string; pageUrl?: string; }, tab?: chrome.tabs.Tab) => void): void;
+    };
   }
 }
 
@@ -45,6 +52,24 @@ chrome.runtime.onInstalled.addListener(async () => {
   chrome.alarms.create('taskChecker', {
     periodInMinutes: 5,
   });
+  // Create context menu for selected text
+  chrome.contextMenus.create({
+    id: "tududi-quick-add-selection",
+    title: "Add selection to TuDuDi",
+    contexts: ["selection"]
+  });
+});
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    await setupLoggingFromStorage();
+    if (info.menuItemId === "tududi-quick-add-selection" && info.selectionText) {
+      await chrome.storage.local.set({ 
+          quickAddItem: { 
+              content: info.selectionText, 
+              url: info.pageUrl 
+          } 
+      });
+    }
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {

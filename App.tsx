@@ -20,6 +20,12 @@ declare namespace chrome {
   namespace tabs {
     function query(queryInfo: any): Promise<any[]>;
   }
+  namespace storage {
+    namespace local {
+      function get(keys: string[]): Promise<{ [key: string]: any }>;
+      function remove(keys: string | string[]): Promise<void>;
+    }
+  }
 }
 
 const App: React.FC = () => {
@@ -38,6 +44,18 @@ const App: React.FC = () => {
   useEffect(() => {
     // Default to true if the setting is not explicitly false
     setupLogging(tududi.settings.consoleLoggingEnabled !== false);
+
+    // Check for quick add item from context menu
+    if (chrome.storage?.local) {
+      chrome.storage.local.get(['quickAddItem']).then(result => {
+        if (result.quickAddItem) {
+          const { content, url } = result.quickAddItem;
+          const fullContent = url ? `${content}\n\n[Source](${url})` : content;
+          setAddModalState({ isOpen: true, initialContent: fullContent });
+          chrome.storage.local.remove('quickAddItem');
+        }
+      });
+    }
   }, [tududi.settings.consoleLoggingEnabled]);
 
   const handleAddTask = useCallback(async (content: string, type: TaskType, projectId?: string, dueDate?: string, reminderValue?: number, reminderUnit?: 'minutes' | 'hours' | 'days') => {

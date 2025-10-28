@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import TaskItem from './TaskItem';
-import { InboxIcon, TodayIcon, UpcomingIcon, SearchIcon } from './Icons';
+import { InboxIcon, TodayIcon, UpcomingIcon, SearchIcon, SortIcon } from './Icons';
 import type { useTuDuDi } from '../hooks/useTuDuDi';
 import type { Task } from '../types';
 
@@ -12,9 +12,12 @@ interface MainViewProps {
   onToggleSelection: (taskId: string) => void;
 }
 
+type SortKey = 'dueDate' | 'creationDate' | 'content';
+
 const MainView: React.FC<MainViewProps> = ({ tududi, onEditTask, onDeleteTask, selectedTaskIds, onToggleSelection }) => {
   const { inboxTasks, todayTasks, upcomingTasks, loading, error, settings } = tududi;
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortKey>('dueDate');
 
   if (loading) {
     return (
@@ -33,22 +36,57 @@ const MainView: React.FC<MainViewProps> = ({ tududi, onEditTask, onDeleteTask, s
     );
   }
   
-  const lowercasedQuery = searchQuery.toLowerCase();
-  const filteredInbox = inboxTasks.filter(t => t.content.toLowerCase().includes(lowercasedQuery));
-  const filteredToday = todayTasks.filter(t => t.content.toLowerCase().includes(lowercasedQuery));
-  const filteredUpcoming = upcomingTasks.filter(t => t.content.toLowerCase().includes(lowercasedQuery));
+  const sortedAndFilteredTasks = useMemo(() => {
+    const lowercasedQuery = searchQuery.toLowerCase();
 
-  const sortTasksByDueDate = (a: Task, b: Task): number => {
-    if (a.dueDate && !b.dueDate) return -1;
-    if (!a.dueDate && b.dueDate) return 1;
-    if (!a.dueDate && !b.dueDate) return 0;
+    const sortFn = (a: Task, b: Task): number => {
+      switch (sortBy) {
+        case 'creationDate':
+          // Newest first
+          return parseInt(b.id) - parseInt(a.id);
+        case 'content': {
+          const contentCompare = a.content.localeCompare(b.content);
+          if (contentCompare !== 0) return contentCompare;
+          // Fallback to creation date (newest first)
+          return parseInt(b.id) - parseInt(a.id);
+        }
+        case 'dueDate':
+        default: {
+          const aHasDate = !!a.dueDate;
+          const bHasDate = !!b.dueDate;
+
+          if (aHasDate && !bHasDate) return -1;
+          if (!aHasDate && bHasDate) return 1;
+          if (!aHasDate && !bHasDate) {
+            // Both have no due date, sort by creation date (newest first)
+            return parseInt(b.id) - parseInt(a.id);
+          }
+          
+          // We can assert non-null because of the checks above
+          const timeA = new Date(a.dueDate!).getTime();
+          const timeB = new Date(b.dueDate!).getTime();
+          
+          if (timeA !== timeB) return timeA - timeB;
+          
+          // Due dates are the same, sort by creation date as a tie-breaker (newest first)
+          return parseInt(b.id) - parseInt(a.id);
+        }
+      }
+    };
+
+    const filterAndSort = (tasks: Task[]) => {
+      return tasks
+        .filter(t => t.content.toLowerCase().includes(lowercasedQuery))
+        .sort(sortFn);
+    };
     
-    // We can assert non-null because of the checks above
-    return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
-  };
+    return {
+      inbox: filterAndSort(inboxTasks),
+      today: filterAndSort(todayTasks),
+      upcoming: filterAndSort(upcomingTasks),
+    };
 
-  const sortedTodayTasks = [...filteredToday].sort(sortTasksByDueDate);
-  const sortedUpcomingTasks = [...filteredUpcoming].sort(sortTasksByDueDate);
+  }, [searchQuery, sortBy, inboxTasks, todayTasks, upcomingTasks]);
 
 
   // FIX: Replaced any[] with Task[] for improved type safety.
@@ -82,22 +120,39 @@ const MainView: React.FC<MainViewProps> = ({ tududi, onEditTask, onDeleteTask, s
 
   return (
     <div className="animate-fade-in pb-16">
-       <div className="relative mb-6">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-            <SearchIcon className="w-5 h-5 text-gray-500" />
-          </span>
-          <input
-            type="text"
-            placeholder="Search tasks..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+       <div className="flex items-center gap-4 mb-6">
+          <div className="relative flex-grow">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+              <SearchIcon className="w-5 h-5 text-gray-500" />
+            </span>
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          <div className="relative">
+             <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortKey)}
+                className="appearance-none w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 pl-3 pr-8 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                aria-label="Sort tasks by"
+              >
+                <option value="dueDate">Due Date</option>
+                <option value="creationDate">Creation Date</option>
+                <option value="content">Content</option>
+              </select>
+              <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <SortIcon className="w-5 h-5 text-gray-400" />
+              </span>
+          </div>
         </div>
 
-      {renderTaskList('Inbox', filteredInbox, <InboxIcon className="w-6 h-6 text-indigo-400" />)}
-      {renderTaskList('Today', sortedTodayTasks, <TodayIcon className="w-6 h-6 text-green-400" />)}
-      {renderTaskList('Upcoming', sortedUpcomingTasks, <UpcomingIcon className="w-6 h-6 text-amber-400" />)}
+      {renderTaskList('Inbox', sortedAndFilteredTasks.inbox, <InboxIcon className="w-6 h-6 text-indigo-400" />)}
+      {renderTaskList('Today', sortedAndFilteredTasks.today, <TodayIcon className="w-6 h-6 text-green-400" />)}
+      {renderTaskList('Upcoming', sortedAndFilteredTasks.upcoming, <UpcomingIcon className="w-6 h-6 text-amber-400" />)}
     </div>
   );
 };
